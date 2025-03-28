@@ -9,7 +9,7 @@ from game.dialogs import PlayerSetupDialog
 
 class RealEstateGame:
     def __init__(self):
-        # inistialize pygame
+        # initialize pygame
         pygame.init()
 
         # Game constants
@@ -31,12 +31,16 @@ class RealEstateGame:
         pygame.display.set_caption("Real Estate Investment Simulator")
         self.clock = pygame.time.Clock()
 
-
         # Game state
         self.running = True
         self.current_screen = "main_menu"
 
-        # initialize game components
+        # Initialize critical components first
+        self.load_fonts()  # Load fonts BEFORE they're needed
+        self.market = MarketAnalytics()
+        self.market.generate_monthly_samples(1)
+
+        # Then initialize player and UI
         self.player = self.initialize_player()
         self.ui_elements = self.setup_ui()
 
@@ -48,28 +52,33 @@ class RealEstateGame:
         self.market.generate_monthly_samples(1)
     
     def initialize_player(self):
-        """Initialize player through GUI dialog"""
-        setup_dialog = PlayerSetupDialog(self.screen, self.fonts)
-        
-        while not setup_dialog.complete:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                setup_dialog.handle_event(event)
+        """Initialize player through GUI dialog with error handling"""
+        try:
+            setup_dialog = PlayerSetupDialog(self.screen, self.fonts)
             
-            setup_dialog.update()
+            while not setup_dialog.complete:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    setup_dialog.handle_event(event)
+                
+                setup_dialog.update()
+                
+                self.screen.fill((240, 240, 240))
+                setup_dialog.draw()
+                pygame.display.flip()
+                self.clock.tick(self.FPS)
             
-            self.screen.fill((240, 240, 240))
-            setup_dialog.draw()
-            pygame.display.flip()
-            self.clock.tick(self.FPS)
-        
-        return Player(
-            setup_dialog.name,
-            setup_dialog.difficulty,
-            setup_dialog.capital
-        )
+            return Player(
+                setup_dialog.name,
+                setup_dialog.difficulty,
+                setup_dialog.capital
+            )
+        except Exception as e:
+            print(f"Error in player setup: {e}")
+            # Fallback to default player
+            return Player("Player", "Medium", 2_500_000)
     
     def load_fonts(self):
         # load all game fonts
