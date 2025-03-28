@@ -1,7 +1,7 @@
 import pygame
 import sys
 from game.player import Player
-from game.property import Property, generate_properties_for_month  # Add this import
+from game.property import Property, generate_properties_for_month
 from game.market import MarketAnalytics
 from game.ui import Button, TextBox
 from game.dialogs import PlayerSetupDialog
@@ -35,7 +35,7 @@ class RealEstateGame:
         self.current_screen = "main_menu"
 
         # Initialize critical components first
-        self.load_fonts()  # Load fonts BEFORE they're needed
+        self.load_fonts()
         self.market = MarketAnalytics()
         self.market.generate_monthly_samples(1)
 
@@ -48,11 +48,21 @@ class RealEstateGame:
         # Then initialize player
         self.player = self.initialize_player()
 
-        #scroll function
+        # Scroll functionality
         self.portfolio_scroll_y = 0
         self.portfolio_scroll_height = 0
-        self.portfolio_dragging = False
+        self.scroll_dragging = False
 
+    def create_back_button(self):
+        """Helper function to create consistent back buttons"""
+        return Button(
+            x=50,
+            y=50,
+            width=150,
+            height=40,
+            text="Back",
+            action=lambda: self.set_screen("main_menu")
+        )
     
     def initialize_player(self):
         """Initialize player through GUI dialog with error handling"""
@@ -115,7 +125,7 @@ class RealEstateGame:
             )
     
     def load_fonts(self):
-        # load all game fonts
+        """Load all game fonts with fallbacks"""
         try:
             self.fonts = {
                 'small': pygame.font.SysFont("Arial", 16),
@@ -124,7 +134,7 @@ class RealEstateGame:
                 'title': pygame.font.SysFont("Arial", 48, bold=True)
             }
         except:
-            # fallback to default fonts if specified ones arent available
+            # fallback to default fonts
             self.fonts = {
                 'small': pygame.font.Font(None, 24),
                 'medium': pygame.font.Font(None, 32),
@@ -134,47 +144,108 @@ class RealEstateGame:
     
     def setup_ui(self):
         """Create all UI elements"""
-        ui_elements = {
+        button_width = 200
+        button_height = 50
+        start_y = 150
+        spacing = 10
+
+
+
+        self.ui_elements = {
             'main_menu': [
                 Button(
-                    x=self.SCREEN_WIDTH//2 - 100,
-                    y=200,
-                    width=200,
-                    height=50,
+                    x=self.SCREEN_WIDTH//2 - button_width//2,
+                    y=start_y,
+                    width=button_width,
+                    height=button_height,
                     text="Buy Properties",
                     action=lambda: self.set_screen("buy_properties")
                 ),
                 Button(
-                    x=self.SCREEN_WIDTH//2 - 100,
-                    y=260,
-                    width=200,
-                    height=50,
+                    x=self.SCREEN_WIDTH//2 - button_width//2,
+                    y=start_y + (button_height + spacing) * 1,
+                    width=button_width,
+                    height=button_height,
+                    text="Sell Properties",
+                    action=self.show_wip_sell_properties
+                ),
+                Button(
+                    x=self.SCREEN_WIDTH//2 - button_width//2,
+                    y=start_y + (button_height + spacing) * 2,
+                    width=button_width,
+                    height=button_height,
                     text="View Portfolio",
                     action=lambda: self.set_screen("portfolio")
                 ),
                 Button(
-                    x=self.SCREEN_WIDTH//2 - 100,
-                    y=320,
-                    width=200,
-                    height=50,
+                    x=self.SCREEN_WIDTH//2 - button_width//2,
+                    y=start_y + (button_height + spacing) * 3,
+                    width=button_width,
+                    height=button_height,
                     text="Market Data",
                     action=lambda: self.set_screen("market")
+                ),
+                Button(
+                    x=self.SCREEN_WIDTH//2 - button_width//2,
+                    y=start_y + (button_height + spacing) * 4,
+                    width=button_width,
+                    height=button_height,
+                    text="Advance Month",
+                    action=self.show_wip_advance_month
+                ),
+                Button(
+                    x=self.SCREEN_WIDTH//2 - button_width//2,
+                    y=start_y + (button_height + spacing) * 5,
+                    width=button_width,
+                    height=button_height,
+                    text="Exit & Save",
+                    action=self.show_wip_exit_save
                 )
             ],
-            'buy_properties': [
+            'buy_properties': [self.create_back_button()],
+            'portfolio': [self.create_back_button()],
+            'market': [self.create_back_button()],
+            'wip_screen': [
                 Button(
-                    x=50,
-                    y=50,
-                    width=150,
-                    height=40,
+                    x=self.SCREEN_WIDTH//2 - 100,
+                    y=400,
+                    width=200,
+                    height=50,
                     text="Back",
                     action=lambda: self.set_screen("main_menu")
                 )
             ]
         }
-        self.ui_elements = ui_elements
     
+    def show_wip_sell_properties(self):
+        """Show Work In Progress message for Sell Properties"""
+        self.wip_message = "Sell Properties (Coming Soon!)"
+        self.set_screen("wip_screen")
+    
+    def show_wip_advance_month(self):
+        """Show Work In Progress message for Advance Month"""
+        self.wip_message = "Advance Month (Coming Soon!)"
+        self.set_screen("wip_screen")
+    
+    def show_wip_exit_save(self):
+        """Show Work In Progress message for Exit & Save"""
+        self.wip_message = "Exit & Save (Coming Soon!)"
+        self.set_screen("wip_screen")
 
+    def draw_wip_screen(self):
+        """Render the Work In Progress screen"""
+        # Header
+        header = self.fonts['large'].render(
+            self.wip_message,
+            True,
+            self.COLORS['primary']
+        )
+        self.screen.blit(header, (self.SCREEN_WIDTH//2 - header.get_width()//2, 200))
+
+        # Draw all UI elements
+        for element in self.ui_elements.get('wip_screen', []):
+            element.draw(self.screen)
+    
     def draw_buy_properties(self):
         """Render the property purchase screen"""
         # Header
@@ -206,7 +277,7 @@ class RealEstateGame:
             for i, prop in enumerate(self.player.available_properties):
                 self.draw_property_card(prop, 100, 150 + i * 150)
         
-        # Draw all UI elements (including buttons)
+        # Draw all UI elements
         for element in self.ui_elements.get('buy_properties', []):
             element.draw(self.screen)
                 
@@ -224,10 +295,13 @@ class RealEstateGame:
             print("Not enough capital!")
     
     def set_screen(self, screen_name):
-        # set the current screen to the specified screen name
+        """Set the current screen and reset scroll position"""
         self.current_screen = screen_name
+        if screen_name == "portfolio":
+            self.portfolio_scroll_y = 0
     
     def handle_events(self):
+        """Handle all pygame events"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -270,8 +344,8 @@ class RealEstateGame:
                     max_scroll = -(self.portfolio_scroll_height - self.SCREEN_HEIGHT + 200)
                     self.portfolio_scroll_y = max_scroll * scroll_ratio
 
-    
     def handle_click(self, pos):
+        """Handle mouse clicks on UI elements"""
         # Adjust click position for scroll offset in portfolio view
         if self.current_screen == "portfolio":
             adjusted_pos = (pos[0], pos[1] - self.portfolio_scroll_y)
@@ -286,8 +360,7 @@ class RealEstateGame:
                 element.action()
     
     def update(self):
-        # update game state
-        # update market data if needed
+        """Update game state"""
         pass
 
     def render(self):
@@ -303,10 +376,11 @@ class RealEstateGame:
             self.draw_buy_properties()
         elif self.current_screen == "market":
             self.draw_market_data()
+        elif self.current_screen == "wip_screen":
+            self.draw_wip_screen()
 
         pygame.display.flip()
     
-
     def draw_market_data(self):
         """Render market information screen"""
         # Header
@@ -316,17 +390,6 @@ class RealEstateGame:
             self.COLORS['primary']
         )
         self.screen.blit(header, (self.SCREEN_WIDTH//2 - header.get_width()//2, 50))
-
-        # Back button
-        back_btn = Button(
-            x=50,
-            y=50,
-            width=150,
-            height=40,
-            text="Back",
-            action=lambda: self.set_screen("main_menu")
-        )
-        back_btn.draw(self.screen)
 
         # Market data
         data = self.market.get_latest_market_data()
@@ -349,10 +412,14 @@ class RealEstateGame:
                 )
                 self.screen.blit(text, (100, y_pos))
                 y_pos += 40
+        
+        # Draw all UI elements
+        for element in self.ui_elements.get('market', []):
+            element.draw(self.screen)
     
     def draw_main_menu(self):
-        # draw main menu elements
-        # title
+        """Draw main menu screen"""
+        # Title
         title = self.fonts['title'].render(
             "Real Estate Tycoon",
             True,
@@ -360,7 +427,7 @@ class RealEstateGame:
         )
         self.screen.blit(title, (self.SCREEN_WIDTH//2 - title.get_width()//2, 50))
 
-        # player info
+        # Player info
         capital_text = self.fonts['medium'].render(
             f"Capital: ${self.player.capital:,.2f}",
             True,
@@ -373,24 +440,14 @@ class RealEstateGame:
             element.draw(self.screen)
     
     def draw_portfolio(self):
-        # render portfolio screen
+        """Render portfolio screen with scrollable list"""
+        # Header
         header = self.fonts['large'].render(
             "Your Portfolio",
             True,
             self.COLORS['primary']
         )
         self.screen.blit(header, (self.SCREEN_WIDTH//2 - header.get_width()//2, 50))
-
-        # Back button
-        back_btn = Button(
-            x=50,
-            y=50,
-            width=150,
-            height=40,
-            text="Back",
-            action=lambda: self.set_screen("main_menu")
-        )
-        back_btn.draw(self.screen)
 
         # Calculate total height needed for all properties
         self.portfolio_scroll_height = 200 + len(self.player.properties) * 120
@@ -409,7 +466,7 @@ class RealEstateGame:
             )
             self.screen.blit(no_props, (self.SCREEN_WIDTH//2 - no_props.get_width()//2, 150))
         else:
-            # render property cards with scroll offset
+            # Render property cards with scroll offset
             for i, prop in enumerate(self.player.properties):
                 self.draw_property_card(prop, 100, 150 + i * 120 + self.portfolio_scroll_y)
 
@@ -418,13 +475,25 @@ class RealEstateGame:
 
         # Draw scrollbar if needed
         if self.portfolio_scroll_height > self.SCREEN_HEIGHT - 200:
+            # Draw scrollbar track
+            pygame.draw.rect(
+                self.screen,
+                (200, 200, 200),  # Light gray track
+                pygame.Rect(self.SCREEN_WIDTH - 20, 150, 10, self.SCREEN_HEIGHT - 200),
+                border_radius=5
+            )
+            # Draw scrollbar thumb
             scrollbar_rect = self.get_scrollbar_rect()
             pygame.draw.rect(
                 self.screen,
-                self.COLORS['primary'],
+                self.COLORS['primary'],  # Blue thumb
                 scrollbar_rect,
                 border_radius=5
             )
+        
+        # Draw all UI elements (including Back button)
+        for element in self.ui_elements.get('portfolio', []):
+            element.draw(self.screen)
     
     def draw_property_card(self, property, x, y):
         """Render a property card UI element"""
@@ -461,8 +530,6 @@ class RealEstateGame:
         for i, detail in enumerate(details):
             text = self.fonts['small'].render(detail, True, self.COLORS['text'])
             self.screen.blit(text, (x + 10, y + 35 + i * 20))
-
-        # More property details...
     
     def get_scrollbar_rect(self):
         """Calculate scrollbar position and size"""
@@ -479,6 +546,7 @@ class RealEstateGame:
         return pygame.Rect(self.SCREEN_WIDTH - 20, scrollbar_y, 10, scrollbar_height)
     
     def run(self):
+        """Main game loop"""
         while self.running:
             self.handle_events()
             self.update()
@@ -490,5 +558,4 @@ class RealEstateGame:
 
 if __name__ == "__main__":
     game = RealEstateGame()
-    game.run()  
-        
+    game.run()
