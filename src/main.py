@@ -39,13 +39,15 @@ class RealEstateGame:
         self.market = MarketAnalytics()
         self.market.generate_monthly_samples(1)
 
-        # Then initialize player and UI
-        self.player = self.initialize_player()
-        self.ui_elements = self.setup_ui()
+        # Initialize UI elements dictionary first
+        self.ui_elements = {}
 
-        # inialize market
-        self.market = MarketAnalytics()
-        self.market.generate_monthly_samples(1)
+        # Setup UI before player initialization
+        self.setup_ui()
+
+        # Then initialize player
+        self.player = self.initialize_player()
+
     
     def initialize_player(self):
         """Initialize player through GUI dialog with error handling"""
@@ -73,13 +75,39 @@ class RealEstateGame:
                 setup_dialog.capital
             )
             player.available_properties = generate_properties_for_month()
+            self.setup_property_buttons(player.available_properties)
             return player
         except Exception as e:
             print(f"Error in player setup: {e}")
             # Fallback to default player with properties
             player = Player("Player", "Medium", 2_500_000)
             player.available_properties = generate_properties_for_month()
+            self.setup_property_buttons(player.available_properties)
             return player
+        
+    def setup_property_buttons(self, properties):
+        """Create buy buttons for available properties"""
+        if 'buy_properties' not in self.ui_elements:
+            self.ui_elements['buy_properties'] = []
+        
+        # Clear existing property buttons (keep the Back button if it exists)
+        self.ui_elements['buy_properties'] = [
+            btn for btn in self.ui_elements.get('buy_properties', [])
+            if btn.text == "Back"
+        ]
+        
+        # Add new property buttons
+        for i, prop in enumerate(properties):
+            self.ui_elements['buy_properties'].append(
+                Button(
+                    x=550,
+                    y=160 + i * 150,
+                    width=150,
+                    height=40,
+                    text=f"Buy ${prop.total_price:,.0f}",
+                    action=lambda p=prop: self.buy_property(p)
+                )
+            )
     
     def load_fonts(self):
         # load all game fonts
@@ -139,7 +167,7 @@ class RealEstateGame:
                 )
             ]
         }
-        return ui_elements
+        self.ui_elements = ui_elements
     
 
     def draw_buy_properties(self):
@@ -152,6 +180,14 @@ class RealEstateGame:
         )
         self.screen.blit(header, (self.SCREEN_WIDTH//2 - header.get_width()//2, 50))
 
+        # Current capital display
+        capital_text = self.fonts['medium'].render(
+            f"Capital: ${self.player.capital:,.2f}",
+            True,
+            self.COLORS['text']
+        )
+        self.screen.blit(capital_text, (self.SCREEN_WIDTH - capital_text.get_width() - 50, 50))
+
         # Property list
         if not self.player.available_properties:
             no_props = self.fonts['medium'].render(
@@ -161,21 +197,14 @@ class RealEstateGame:
             )
             self.screen.blit(no_props, (self.SCREEN_WIDTH//2 - no_props.get_width()//2, 150))
         else:
-            # Render property cards with buy buttons
+            # Render property cards
             for i, prop in enumerate(self.player.available_properties):
                 self.draw_property_card(prop, 100, 150 + i * 150)
+        
+        # Draw all UI elements (including buttons)
+        for element in self.ui_elements.get('buy_properties', []):
+            element.draw(self.screen)
                 
-                # Add buy button
-                buy_btn = Button(
-                    x=550,
-                    y=160 + i * 150,
-                    width=150,
-                    height=40,
-                    text=f"Buy ${prop.total_price:,.0f}",
-                    action=lambda p=prop: self.buy_property(p)
-                )
-                buy_btn.draw(self.screen)
-    
     def buy_property(self, property):
         """Handle property purchase"""
         if self.player.capital >= property.total_price:
@@ -183,6 +212,9 @@ class RealEstateGame:
             self.player.properties.append(property)
             self.player.available_properties.remove(property)
             print(f"Purchased {property.address} for ${property.total_price:,.2f}")
+            
+            # Refresh the property buttons after purchase
+            self.setup_property_buttons(self.player.available_properties)
         else:
             print("Not enough capital!")
     
@@ -349,6 +381,16 @@ class RealEstateGame:
         )
         self.screen.blit(name, (x + 10, y + 10))
         
+        details = [
+            f"Value: ${property.total_price:,.0f}",
+            f"Rent: ${property.rent_per_unit:,.0f}/unit",
+            f"CAP: {property.cap_rate:.1f}%"
+        ]
+        
+        for i, detail in enumerate(details):
+            text = self.fonts['small'].render(detail, True, self.COLORS['text'])
+            self.screen.blit(text, (x + 10, y + 35 + i * 20))
+
         # More property details...
     
     def run(self):
