@@ -48,6 +48,11 @@ class RealEstateGame:
         # Then initialize player
         self.player = self.initialize_player()
 
+        #scroll function
+        self.portfolio_scroll_y = 0
+        self.portfolio_scroll_height = 0
+        self.portfolio_dragging = False
+
     
     def initialize_player(self):
         """Initialize player through GUI dialog with error handling"""
@@ -223,7 +228,6 @@ class RealEstateGame:
         self.current_screen = screen_name
     
     def handle_events(self):
-        # Handle all pygame events
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
@@ -236,12 +240,47 @@ class RealEstateGame:
                         self.set_screen("main_menu")
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1: # left click
+                if event.button == 1:  # left click
                     self.handle_click(event.pos)
+                    # Check if clicking on scrollbar
+                    if self.current_screen == "portfolio":
+                        scrollbar_rect = self.get_scrollbar_rect()
+                        if scrollbar_rect.collidepoint(event.pos):
+                            self.scroll_dragging = True
+                
+                # Mouse wheel scrolling
+                elif event.button == 4:  # scroll up
+                    if self.current_screen == "portfolio":
+                        self.portfolio_scroll_y = min(0, self.portfolio_scroll_y + 20)
+                elif event.button == 5:  # scroll down
+                    if self.current_screen == "portfolio":
+                        max_scroll = -(self.portfolio_scroll_height - self.SCREEN_HEIGHT + 200)
+                        self.portfolio_scroll_y = max(max_scroll, self.portfolio_scroll_y - 20)
+            
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:  # left click release
+                    self.scroll_dragging = False
+            
+            elif event.type == pygame.MOUSEMOTION:
+                if self.scroll_dragging and self.current_screen == "portfolio":
+                    # Handle scrollbar dragging
+                    scrollbar_rect = self.get_scrollbar_rect()
+                    mouse_y = event.pos[1]
+                    scroll_ratio = (mouse_y - 150) / (self.SCREEN_HEIGHT - 300)
+                    max_scroll = -(self.portfolio_scroll_height - self.SCREEN_HEIGHT + 200)
+                    self.portfolio_scroll_y = max_scroll * scroll_ratio
 
     
-    def handle_click(self,pos):
-        #handle mouse clicks on ui elements
+    def handle_click(self, pos):
+        # Adjust click position for scroll offset in portfolio view
+        if self.current_screen == "portfolio":
+            adjusted_pos = (pos[0], pos[1] - self.portfolio_scroll_y)
+            # Check if click is in the property list area
+            if 50 <= pos[0] <= self.SCREEN_WIDTH - 50 and 150 <= pos[1] <= self.SCREEN_HEIGHT - 50:
+                # Handle property clicks here if needed
+                pass
+        
+        # Handle UI element clicks
         for element in self.ui_elements.get(self.current_screen, []):
             if element.rect.collidepoint(pos):
                 element.action()
@@ -342,18 +381,50 @@ class RealEstateGame:
         )
         self.screen.blit(header, (self.SCREEN_WIDTH//2 - header.get_width()//2, 50))
 
-        # Proeprty list
+        # Back button
+        back_btn = Button(
+            x=50,
+            y=50,
+            width=150,
+            height=40,
+            text="Back",
+            action=lambda: self.set_screen("main_menu")
+        )
+        back_btn.draw(self.screen)
+
+        # Calculate total height needed for all properties
+        self.portfolio_scroll_height = 200 + len(self.player.properties) * 120
+        
+        # Create a clipping area for the property list
+        list_area = pygame.Rect(50, 150, self.SCREEN_WIDTH - 100, self.SCREEN_HEIGHT - 200)
+        old_clip = self.screen.get_clip()
+        self.screen.set_clip(list_area)
+
+        # Property list
         if not self.player.properties:
             no_props = self.fonts['medium'].render(
-                "You dont own any properties yet!",
+                "You don't own any properties yet!",
                 True,
                 self.COLORS['text']
             )
             self.screen.blit(no_props, (self.SCREEN_WIDTH//2 - no_props.get_width()//2, 150))
         else:
-            # render proeprty cards
+            # render property cards with scroll offset
             for i, prop in enumerate(self.player.properties):
-                self.draw_property_card(prop, 100, 150 + i * 120)
+                self.draw_property_card(prop, 100, 150 + i * 120 + self.portfolio_scroll_y)
+
+        # Reset clipping
+        self.screen.set_clip(old_clip)
+
+        # Draw scrollbar if needed
+        if self.portfolio_scroll_height > self.SCREEN_HEIGHT - 200:
+            scrollbar_rect = self.get_scrollbar_rect()
+            pygame.draw.rect(
+                self.screen,
+                self.COLORS['primary'],
+                scrollbar_rect,
+                border_radius=5
+            )
     
     def draw_property_card(self, property, x, y):
         """Render a property card UI element"""
@@ -392,6 +463,20 @@ class RealEstateGame:
             self.screen.blit(text, (x + 10, y + 35 + i * 20))
 
         # More property details...
+    
+    def get_scrollbar_rect(self):
+        """Calculate scrollbar position and size"""
+        if self.portfolio_scroll_height <= self.SCREEN_HEIGHT - 200:
+            return pygame.Rect(0, 0, 0, 0)  # No scrollbar needed
+        
+        # Calculate scrollbar height based on content
+        scrollbar_height = max(50, (self.SCREEN_HEIGHT - 200) ** 2 / self.portfolio_scroll_height)
+        
+        # Calculate scrollbar position based on current scroll
+        scroll_ratio = -self.portfolio_scroll_y / (self.portfolio_scroll_height - self.SCREEN_HEIGHT + 200)
+        scrollbar_y = 150 + scroll_ratio * (self.SCREEN_HEIGHT - 300 - scrollbar_height)
+        
+        return pygame.Rect(self.SCREEN_WIDTH - 20, scrollbar_y, 10, scrollbar_height)
     
     def run(self):
         while self.running:
