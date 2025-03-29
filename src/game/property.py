@@ -158,9 +158,10 @@ def generate_properties_for_month():
     property_types = ["Duplex", "Triplex", "Fourplex", "Apartment", "Apartment Complex"]
     properties = []
     
-    # Generate 3 of each property type
+    # Generate 0-10 of each property type
     for prop_type in property_types:
-        for _ in range(3):  # 3 of each type
+        num_properties = random.randint(0, 10)  # Random number between 0-10
+        for _ in range(num_properties):
             properties.append(generate_property(prop_type))
     
     return properties

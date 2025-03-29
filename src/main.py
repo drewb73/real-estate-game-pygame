@@ -369,14 +369,20 @@ class RealEstateGame:
         if self.player.capital >= property.total_price:
             self.player.capital -= property.total_price
             self.player.properties.append(property)
-            self.player.available_properties.remove(property)
+            
+            # Remove from both available_properties and filtered_properties
+            if property in self.player.available_properties:
+                self.player.available_properties.remove(property)
+            if property in self.filtered_properties:
+                self.filtered_properties.remove(property)
+            
             print(f"Purchased {property.address} for ${property.total_price:,.2f}")
             
             # Refresh the property buttons after purchase
             self.setup_property_buttons(self.player.available_properties)
         else:
             print("Not enough capital!")
-    
+
     def set_screen(self, screen_name):
         """Set the current screen and reset scroll position"""
         self.current_screen = screen_name
