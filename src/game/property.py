@@ -112,13 +112,31 @@ def generate_maintenance_per_unit():
     """Generate random maintenance cost per unit"""
     return random.randint(200, 800)
 
+# In property.py - update the generate_property function
 def generate_property(property_type):
     """Generate a property with natural CAP rate variation"""
+    # Determine units based on property type
+    if property_type == "Duplex":
+        units = 2
+    elif property_type == "Triplex":
+        units = 3
+    elif property_type == "Fourplex":
+        units = 4
+    elif property_type == "Apartment":
+        units = random.randint(5, 16)
+    else:  # Apartment Complex
+        units = random.randint(17, 150)
+    
+    # Generate price per unit (175k-350k)
+    price_per_unit = random.randint(175000, 350000)
+    total_price = units * price_per_unit
+    
+    # Generate other property attributes
     prop = Property(
         property_type=property_type,
         address=generate_address(),
-        units=generate_units(property_type),
-        price_per_unit=generate_price_per_unit(),
+        units=units,
+        price_per_unit=price_per_unit,
         management_fee_percent=generate_management_fee_percent(),
         rent_per_unit=generate_rent_per_unit(),
         maintenance_per_unit=generate_maintenance_per_unit()
@@ -138,5 +156,11 @@ def generate_properties_for_type(property_type, count=5):
 def generate_properties_for_month():
     """Generate properties for all types for the current month"""
     property_types = ["Duplex", "Triplex", "Fourplex", "Apartment", "Apartment Complex"]
-    return [prop for prop_type in property_types 
-            for prop in generate_properties_for_type(prop_type, count=5)]
+    properties = []
+    
+    # Generate 3 of each property type
+    for prop_type in property_types:
+        for _ in range(3):  # 3 of each type
+            properties.append(generate_property(prop_type))
+    
+    return properties

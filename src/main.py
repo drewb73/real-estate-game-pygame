@@ -53,6 +53,10 @@ class RealEstateGame:
         self.portfolio_scroll_height = 0
         self.scroll_dragging = False
 
+        # initialize filtered properties
+        self.filtered_properties = []
+        self.current_property_type = ""
+
     def create_back_button(self):
         """Helper function to create consistent back buttons"""
         return Button(
@@ -159,7 +163,7 @@ class RealEstateGame:
                     width=button_width,
                     height=button_height,
                     text="Buy Properties",
-                    action=lambda: self.set_screen("buy_properties")
+                    action=lambda: self.set_screen("property_type_selection")
                 ),
                 Button(
                     x=self.SCREEN_WIDTH//2 - button_width//2,
@@ -202,6 +206,49 @@ class RealEstateGame:
                     action=self.show_wip_exit_save
                 )
             ],
+            'property_type_selection': [
+                Button(
+                    x=self.SCREEN_WIDTH//2 - 100,
+                    y=150,
+                    width=200,
+                    height=50,
+                    text="Duplex",
+                    action=lambda: self.show_properties_of_type("Duplex")
+                ),
+                Button(
+                    x=self.SCREEN_WIDTH//2 - 100,
+                    y=210,
+                    width=200,
+                    height=50,
+                    text="Triplex",
+                    action=lambda: self.show_properties_of_type("Triplex")
+                ),
+                Button(
+                    x=self.SCREEN_WIDTH//2 - 100,
+                    y=270,
+                    width=200,
+                    height=50,
+                    text="Fourplex",
+                    action=lambda: self.show_properties_of_type("Fourplex")
+                ),
+                Button(
+                    x=self.SCREEN_WIDTH//2 - 100,
+                    y=330,
+                    width=200,
+                    height=50,
+                    text="Apartment",
+                    action=lambda: self.show_properties_of_type("Apartment")
+                ),
+                Button(
+                   x=self.SCREEN_WIDTH//2 - 100,
+                   y=390,
+                   width=200,
+                   height=50,
+                   text="Apartment Complex",
+                   action=lambda: self.show_properties_of_type("Apartment Complex")
+                ),
+                self.create_back_button()
+            ],
             'buy_properties': [self.create_back_button()],
             'portfolio': [self.create_back_button()],
             'market': [self.create_back_button()],
@@ -216,6 +263,13 @@ class RealEstateGame:
                 )
             ]
         }
+
+    def show_properties_of_type(self, property_type):
+        """Filter and show properties of specific type"""
+        self.current_property_type = property_type
+        self.filtered_properties = [p for p in self.player.available_properties 
+                                if p.property_type == property_type]
+        self.set_screen("buy_properties")
     
     def show_wip_sell_properties(self):
         """Show Work In Progress message for Sell Properties"""
@@ -246,40 +300,69 @@ class RealEstateGame:
         for element in self.ui_elements.get('wip_screen', []):
             element.draw(self.screen)
     
-    def draw_buy_properties(self):
-        """Render the property purchase screen"""
+    def draw_property_type_selection(self):
+        """Render the property type selection screen"""
         # Header
         header = self.fonts['large'].render(
-            "Available Properties",
+            "Select Property Type",
             True,
             self.COLORS['primary']
+        )
+        self.screen.blit(header, (self.SCREEN_WIDTH//2 - header.get_width()//2, 50))
+
+        # Draw all UI elements
+        for element in self.ui_elements.get('property_type_selection', []):
+            element.draw(self.screen)
+    
+    def draw_buy_properties(self):
+        """Render the property purchase screen for selected type"""
+        # Header showing current property type
+        header = self.fonts['large'].render(
+            f"Available {self.current_property_type}s",
+            True, self.COLORS['primary']
         )
         self.screen.blit(header, (self.SCREEN_WIDTH//2 - header.get_width()//2, 50))
 
         # Current capital display
         capital_text = self.fonts['medium'].render(
             f"Capital: ${self.player.capital:,.2f}",
-            True,
-            self.COLORS['text']
+            True, self.COLORS['text']
         )
         self.screen.blit(capital_text, (self.SCREEN_WIDTH - capital_text.get_width() - 50, 50))
 
         # Property list
-        if not self.player.available_properties:
+        if not self.filtered_properties:
             no_props = self.fonts['medium'].render(
-                "No properties available this month!",
-                True,
-                self.COLORS['text']
+                f"No {self.current_property_type}s available this month!",
+                True, self.COLORS['text']
             )
             self.screen.blit(no_props, (self.SCREEN_WIDTH//2 - no_props.get_width()//2, 150))
         else:
-            # Render property cards
-            for i, prop in enumerate(self.player.available_properties):
+            # Render property cards with buy buttons
+            for i, prop in enumerate(self.filtered_properties):
                 self.draw_property_card(prop, 100, 150 + i * 150)
+                
+                # Buy button
+                buy_btn = Button(
+                    x=570,
+                    y=160 + i * 150,
+                    width=150,
+                    height=40,
+                    text=f"Buy ${prop.total_price:,.0f}",
+                    action=lambda p=prop: self.buy_property(p)
+                )
+                buy_btn.draw(self.screen)
         
-        # Draw all UI elements
-        for element in self.ui_elements.get('buy_properties', []):
-            element.draw(self.screen)
+        # Back button
+        back_btn = Button(
+            x=50,
+            y=50,
+            width=150,
+            height=40,
+            text="Back to Types",
+            action=lambda: self.set_screen("property_type_selection")
+        )
+        back_btn.draw(self.screen)
                 
     def buy_property(self, property):
         """Handle property purchase"""
@@ -370,6 +453,8 @@ class RealEstateGame:
         # Draw current screen
         if self.current_screen == "main_menu":
             self.draw_main_menu()
+        elif self.current_screen == "property_type_selection":
+            self.draw_property_type_selection()
         elif self.current_screen == "portfolio":
             self.draw_portfolio()
         elif self.current_screen == "buy_properties":
@@ -496,40 +581,56 @@ class RealEstateGame:
             element.draw(self.screen)
     
     def draw_property_card(self, property, x, y):
-        """Render a property card UI element"""
+        """Render a property card UI element with all details"""
         # Card background
-        card_rect = pygame.Rect(x, y, 400, 100)
-        pygame.draw.rect(
-            self.screen,
-            (255, 255, 255),
-            card_rect,
-            border_radius=8
-        )
-        pygame.draw.rect(
-            self.screen,
-            self.COLORS['primary'],
-            card_rect,
-            width=2,
-            border_radius=8
-        )
+        card_rect = pygame.Rect(x, y, 450, 140)  # Increased height for more info
+        pygame.draw.rect(self.screen, (255, 255, 255), card_rect, border_radius=8)
+        pygame.draw.rect(self.screen, self.COLORS['primary'], card_rect, width=2, border_radius=8)
         
-        # Property info
+        # Property info - organized in two columns
+        left_col = x + 10
+        right_col = x + 230
+        
+        # Left column
         name = self.fonts['medium'].render(
             f"{property.property_type}: {property.address}",
-            True,
-            self.COLORS['text']
+            True, self.COLORS['text']
         )
-        self.screen.blit(name, (x + 10, y + 10))
+        self.screen.blit(name, (left_col, y + 10))
         
-        details = [
-            f"Value: ${property.total_price:,.0f}",
-            f"Rent: ${property.rent_per_unit:,.0f}/unit",
-            f"CAP: {property.cap_rate:.1f}%"
+        details_left = [
+            f"Units: {property.units}",
+            f"Price/Unit: ${property.price_per_unit:,.0f}",
+            f"Value: ${property.total_price:,.0f}"
         ]
         
-        for i, detail in enumerate(details):
+        # Right column
+        details_right = [
+            f"Rent: ${property.rent_per_unit:,.0f}/unit",
+            f"CAP: {property.cap_rate:.1f}%",
+            f"Gross Income: ${property.gross_income:,.0f}/yr"
+        ]
+        
+        # Draw left column details
+        for i, detail in enumerate(details_left):
             text = self.fonts['small'].render(detail, True, self.COLORS['text'])
-            self.screen.blit(text, (x + 10, y + 35 + i * 20))
+            self.screen.blit(text, (left_col, y + 40 + i * 20))
+        
+        # Draw right column details
+        for i, detail in enumerate(details_right):
+            text = self.fonts['small'].render(detail, True, self.COLORS['text'])
+            self.screen.blit(text, (right_col, y + 40 + i * 20))
+        
+        # Add valuation indicator
+        valuation = ""
+        if property.cap_rate >= 7: valuation = "🔥🔥 Premium Investment!"
+        elif property.cap_rate >= 5.5: valuation = "🔥 Solid Deal"
+        elif property.cap_rate <= 3: valuation = "⚠️⚠️ Money Pit"
+        elif property.cap_rate <= 4: valuation = "⚠️ Below Average"
+        else: valuation = "➖ Average"
+        
+        valuation_text = self.fonts['small'].render(valuation, True, self.COLORS['text'])
+        self.screen.blit(valuation_text, (left_col, y + 110))
     
     def get_scrollbar_rect(self):
         """Calculate scrollbar position and size"""
